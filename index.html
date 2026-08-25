@@ -155,7 +155,18 @@ tbody tr.is-paused td:not(.c-act){opacity:.55}
 .pending-bar.on{display:flex}
 .pending-bar .btn{border-color:#4b5560}
 
-.empty{padding:56px 20px;text-align:center;color:var(--ink-3)}
+.lock{position:fixed;inset:0;background:var(--ink);z-index:60;display:none;align-items:center;justify-content:center;padding:20px}
+.lock.on{display:flex}
+.lock-card{width:min(380px,100%);color:#fff}
+.lock-card h2{margin:6px 0 6px;font-size:24px;font-weight:800;letter-spacing:-.03em}
+.lock-card p{margin:0 0 18px;font-size:13px;color:#8b98a6;line-height:1.6}
+.lock-card input[type=password]{width:100%;background:#1e252d;border:1px solid #3d4752;border-radius:3px;color:#fff;padding:11px 12px;font-family:var(--mono);font-size:14px;letter-spacing:.1em}
+.lock-card input:focus{outline:2px solid #5b6774;outline-offset:-1px}
+.lock-row{display:flex;gap:8px;margin-top:10px}
+.lock-row .btn-go{flex:1;padding:11px}
+.lock-remember{display:flex;align-items:center;gap:7px;margin-top:14px;font-size:12px;color:#8b98a6}
+.lock-remember input{accent-color:#2f9d7e;width:14px;height:14px}
+.lock-err{margin-top:12px;font-size:12.5px;color:#f0a094;min-height:18px}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
 
 dialog{border:0;border-radius:5px;padding:0;max-width:640px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(14,18,22,.35)}
@@ -208,6 +219,7 @@ pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12
         </select>
         <button class="btn btn-go" id="refreshBtn">새로고침</button>
         <button class="btn" id="setupBtn">설정</button>
+        <button class="btn" id="lockBtn" hidden title="암호 다시 묻기">잠금</button>
       </div>
     </div>
 
@@ -311,6 +323,21 @@ pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12
   <button class="btn" id="discardBtn">되돌리기</button>
 </div>
 
+<div class="lock" id="lock">
+  <div class="lock-card">
+    <div class="eyebrow">이사 업체 · 오더 배정 현황판</div>
+    <h2>접속 암호</h2>
+    <p>관리자에게 받은 암호를 입력하세요. 암호는 이 페이지 소스에 들어 있지 않습니다.</p>
+    <input type="password" id="lockInput" placeholder="••••••••" autocomplete="current-password">
+    <div class="lock-row"><button class="btn btn-go" id="lockGo">열기</button></div>
+    <label class="lock-remember">
+      <input type="checkbox" id="lockRemember">
+      이 링크에 암호를 남겨두기 (북마크용 · 링크 공유 시 함께 전달됨)
+    </label>
+    <div class="lock-err" id="lockErr"></div>
+  </div>
+</div>
+
 <div class="scrim" id="scrim"></div>
 <aside class="drawer" id="drawer" aria-hidden="true" aria-label="업체 상세">
   <div class="dhead">
@@ -363,6 +390,7 @@ pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12
       <li><b>배포 → 새 배포 → 웹 앱</b>, 실행 주체 <b>나</b>, 액세스 권한 <b>모든 사용자</b></li>
       <li>발급된 <code>/exec</code> 주소를 아래에 붙여넣기</li>
     </ol>
+    <p style="font-size:12px;color:var(--ink-3)">코드 첫 줄의 <code>PASSCODE</code>를 원하는 값으로 바꾸세요. 이 암호는 Apps Script 안에만 있고 웹페이지 소스에는 들어가지 않습니다. 페이지를 열면 암호를 묻습니다.</p>
     <p style="font-size:12px;color:var(--ink-3)">이미 배포한 뒤 코드를 고쳤다면 <b>배포 → 배포 관리 → 연필 → 버전: 새 버전 → 배포</b>를 해야 반영됩니다. 저장만으로는 바뀌지 않습니다.</p>
     <pre id="gasCode"></pre>
     <div class="mrow">
@@ -408,7 +436,8 @@ function writeHash(){
   const p = new URLSearchParams();
   if (cfg.sheet !== DEFAULTS.sheet) p.set("sheet", cfg.sheet);
   if (cfg.tab !== DEFAULTS.tab) p.set("tab", cfg.tab);
-  if (cfg.api) p.set("api", cfg.api);
+  if (cfg.api !== DEFAULTS.api) p.set("api", cfg.api);
+  if (rememberKey && passKey) p.set("key", passKey);
   const s = p.toString();
   history.replaceState(null, "", s ? "#"+s : location.pathname + location.search);
 }
@@ -417,6 +446,8 @@ const sheetUrl = () => `https://docs.google.com/spreadsheets/d/${sheetId(cfg.she
 
 /* ─── 상태 ─────────────────────────────────────────── */
 let rows = [];
+let passKey = cfg.key || "";        // 메모리에만 두는 접속 암호
+let rememberKey = !!cfg.key;        // 링크(#)에 남길지 여부
 const overrides = new Map();
 let sort = { key:"name", dir:1 };
 const filters = { q:"", status:"all", sido:"", gu:"", type:"", size:"", pri:"" };
@@ -495,12 +526,18 @@ async function load(manual){
   // 1순위: Apps Script 웹 앱 (CORS 제약 없음, 시트 비공개 가능)
   if (cfg.api){
     try{
-      const u = `${cfg.api}?tab=${encodeURIComponent(cfg.tab)}&t=${Date.now()}`;
+      const u = `${cfg.api}?tab=${encodeURIComponent(cfg.tab)}&key=${encodeURIComponent(passKey)}&t=${Date.now()}`;
       const res = await fetch(u, { cache:"no-store" });
       if(!res.ok) throw new Error("HTTP "+res.status);
       const j = await res.json();
+      if(j && j.error === "unauthorized"){
+        btn.disabled = false;
+        askKey(passKey ? "암호가 맞지 않습니다." : "");
+        return;
+      }
       if(!j || !Array.isArray(j.values)) throw new Error(j && j.error ? j.error : "doGet 응답 형식이 다릅니다");
       btn.disabled = false;
+      showLock(false);
       ingestGrid(j.values.map(r=>r.map(c=>String(c==null?"":c))));
       if(manual) flash("최신 상태로 맞췄습니다");
       return;
@@ -782,8 +819,11 @@ async function apply(r,next){
   if(document.getElementById("drawer").classList.contains("on")) openDetail(r);
   if(!cfg.api) return;
   try{
-    await fetch(cfg.api,{ method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify({ tab:cfg.tab, loginId:r.loginId, name:r.name, stop:next }) });
+    const res = await fetch(cfg.api,{ method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({ tab:cfg.tab, key:passKey, loginId:r.loginId, name:r.name, stop:next }) });
+    const j = await res.json().catch(()=>({}));
+    if(j.error === "unauthorized"){ askKey("암호가 만료됐습니다. 다시 입력하세요."); return; }
+    if(j.error){ flash("저장 실패: " + j.error); return; }
     flash(`${r.name} ${next?"중지":"재개"} 저장됨`);
     setTimeout(()=>load(false), 900);
   }catch(e){ flash("시트에 저장하지 못했습니다"); }
@@ -902,23 +942,60 @@ document.getElementById("autoSel").onchange = e=>{
 };
 document.getElementById("autoSel").dispatchEvent(new Event("change"));
 
+/* ─── 접속 암호 ────────────────────────────────────── */
+function showLock(on){
+  document.getElementById("lock").classList.toggle("on", on);
+  document.getElementById("lockBtn").hidden = !passKey;
+  if(on) setTimeout(()=>document.getElementById("lockInput").focus(), 60);
+}
+function askKey(msg){
+  document.getElementById("lockErr").textContent = msg || "";
+  document.getElementById("lockInput").value = "";
+  document.getElementById("lockRemember").checked = rememberKey;
+  setSync("암호 입력 필요","");
+  showLock(true);
+}
+function submitKey(){
+  const v = document.getElementById("lockInput").value.trim();
+  if(!v){ document.getElementById("lockErr").textContent = "암호를 입력하세요."; return; }
+  passKey = v;
+  rememberKey = document.getElementById("lockRemember").checked;
+  writeHash();
+  document.getElementById("lockErr").textContent = "확인 중…";
+  load(false);
+}
+document.getElementById("lockGo").onclick = submitKey;
+document.getElementById("lockInput").addEventListener("keydown", e=>{ if(e.key==="Enter") submitKey(); });
+document.getElementById("lockBtn").onclick = ()=>{
+  passKey = ""; rememberKey = false; rows = []; overrides.clear();
+  writeHash(); render(); askKey("");
+};
+
 /* ─── 설정 ─────────────────────────────────────────── */
 const dlg = document.getElementById("setup");
 document.getElementById("gasCode").textContent =
-`function doGet(e) {
-  var tab = (e && e.parameter && e.parameter.tab) || '시트1';
-  var sh = SpreadsheetApp.getActive().getSheetByName(tab);
-  if (!sh) {
-    return ContentService.createTextOutput(JSON.stringify({ error: '탭 없음: ' + tab }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  return ContentService
-    .createTextOutput(JSON.stringify({ values: sh.getDataRange().getDisplayValues() }))
+`// ── 접속 암호. 원하는 값으로 바꾸세요 ──
+var PASSCODE = 'change-me-1234';
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  if (String(p.key || '') !== PASSCODE) return json_({ error: 'unauthorized' });
+
+  var tab = p.tab || '시트1';
+  var sh = SpreadsheetApp.getActive().getSheetByName(tab);
+  if (!sh) return json_({ error: '탭 없음: ' + tab });
+  return json_({ values: sh.getDataRange().getDisplayValues() });
 }
 
 function doPost(e) {
   var p = JSON.parse(e.postData.contents);
+  if (String(p.key || '') !== PASSCODE) return json_({ error: 'unauthorized' });
+
   var sh = SpreadsheetApp.getActive().getSheetByName(p.tab || '시트1');
   var data = sh.getDataRange().getValues();
   var head = data[0];
@@ -930,11 +1007,10 @@ function doPost(e) {
            || ((!p.loginId || idCol < 0) && data[i][nmCol] === p.name);
     if (hit) {
       sh.getRange(i + 1, stCol + 1).setValue(p.stop ? '중지' : '');
-      break;
+      return json_({ ok: true });
     }
   }
-  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return json_({ error: '업체를 찾지 못했습니다' });
 }`;
 document.getElementById("setupBtn").onclick = ()=>{
   document.getElementById("cfgSheet").value = cfg.sheet;
