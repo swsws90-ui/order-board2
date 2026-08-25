@@ -372,6 +372,12 @@ pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12
       </div>
       <button class="btn-dark" id="cfgApiSave">저장</button>
     </div>
+    <div id="pinBox" hidden style="border:1px solid var(--line);border-radius:3px;padding:12px;background:#f7f9fa">
+      <p style="margin:0 0 6px;font-weight:700;color:var(--ink)">모든 링크에 적용하려면 파일에 고정하세요</p>
+      <p style="margin:0 0 8px;font-size:12px">지금 저장한 값은 <b>이 주소(#)에서만</b> 유효합니다. 새 링크로 열면 다시 비어 있습니다. 아래 줄을 복사해 <code>index.html</code> 안의 <code>BUILD</code> 블록에 있는 <code>API:</code> 줄과 통째로 바꾸고 커밋하세요.</p>
+      <pre id="pinCode" style="margin:0 0 8px"></pre>
+      <button class="btn-quiet" id="pinCopy">한 줄 복사</button>
+    </div>
     <p style="font-size:12px;color:var(--ink-3)">설정은 이 페이지 주소(#)에 저장됩니다. 북마크하거나 공유하면 설정도 따라갑니다.</p>
   </div>
 </dialog>
@@ -379,8 +385,18 @@ pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12
 <script>
 "use strict";
 
+/* ══════════════════════════════════════════════════════
+   여기만 채우면 어떤 링크로 열어도 바로 연결됩니다.
+   API 에 Apps Script 웹 앱 주소(/exec)를 붙여넣고 저장하세요.
+   ══════════════════════════════════════════════════════ */
+const BUILD = {
+  API:   "https://script.google.com/macros/s/AKfycbx86CvUafP-wD5j_EpiLE46-MjXG89wIjTh6SZf-_DlaUS0dy9iCDl75VskBUIP_c-M/exec",
+  SHEET: "1OJH9F2kjQ5V6Wwp3IcTeMjgJNASTsIxLVuCbrnpdXWQ",
+  TAB:   "시트1"
+};
+
 /* ─── 설정 ─────────────────────────────────────────── */
-const DEFAULTS = { sheet:"1OJH9F2kjQ5V6Wwp3IcTeMjgJNASTsIxLVuCbrnpdXWQ", tab:"시트1", api:"" };
+const DEFAULTS = { sheet: BUILD.SHEET, tab: BUILD.TAB, api: BUILD.API };
 const cfg = Object.assign({}, DEFAULTS, parseHash());
 
 function parseHash(){
@@ -924,7 +940,25 @@ document.getElementById("setupBtn").onclick = ()=>{
   document.getElementById("cfgSheet").value = cfg.sheet;
   document.getElementById("cfgTab").value = cfg.tab;
   document.getElementById("cfgApi").value = cfg.api;
+  showPin();
   dlg.showModal();
+};
+function showPin(){
+  const box = document.getElementById("pinBox");
+  // 파일에 이미 박혀 있으면 안내할 필요가 없다
+  if(!cfg.api || cfg.api === BUILD.API){ box.setAttribute("hidden",""); return; }
+  document.getElementById("pinCode").textContent = `  API:   "${cfg.api}",`;
+  box.removeAttribute("hidden");
+}
+document.getElementById("pinCopy").onclick = async ()=>{
+  const t = document.getElementById("pinCode").textContent;
+  try{
+    await navigator.clipboard.writeText(t);
+    document.getElementById("pinCopy").textContent = "복사됨";
+    setTimeout(()=>document.getElementById("pinCopy").textContent="한 줄 복사", 1600);
+  }catch(e){
+    document.getElementById("pinCopy").textContent = "복사 실패 — 직접 선택하세요";
+  }
 };
 document.getElementById("setupClose").onclick = ()=>dlg.close();
 document.getElementById("cfgApply").onclick = ()=>{
@@ -934,8 +968,9 @@ document.getElementById("cfgApply").onclick = ()=>{
 };
 document.getElementById("cfgApiSave").onclick = ()=>{
   cfg.api = document.getElementById("cfgApi").value.trim();
-  writeHash(); pendingBar();
-  flash(cfg.api ? "시트에 바로 저장하도록 설정했습니다" : "저장 주소를 지웠습니다");
+  writeHash(); pendingBar(); showPin();
+  flash(cfg.api ? "이 주소에 한해 연결했습니다" : "저장 주소를 지웠습니다");
+  load(false);
 };
 
 load(false);
