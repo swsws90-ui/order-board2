@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오더 배정 현황판</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14181d; --ink-2:#3a444f; --ink-3:#6b7885;
+  --line:#d7dce1; --line-2:#e9edf0; --canvas:#e8ebee; --panel:#fff;
+  --live:#0b7a5f; --live-bg:#e2f3ec;
+  --paused:#a92e1e; --paused-bg:#fbe8e5;
+  --flag:#8a6100; --flag-bg:#fdf0d4;
+  --p1:#28407e; --p1-bg:#e6ebf7;
+  --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--canvas);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--p1)}
+.wrap{max-width:1400px;margin:0 auto;padding:20px 20px 80px}
+
+.masthead{background:var(--ink);color:#fff;border-radius:4px;padding:20px 22px 16px}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#8b98a6}
+.mast-top{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+h1{font-size:29px;font-weight:800;letter-spacing:-.035em;margin:2px 0 0}
+.mast-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sync{font-family:var(--mono);font-size:11px;color:#8b98a6;text-align:right;line-height:1.4}
+.sync b{color:#fff;font-weight:500}
+.btn{background:transparent;border:1px solid #3d4752;color:#e6eaee;border-radius:3px;padding:7px 13px;font-size:12.5px;font-weight:600;transition:.14s}
+.btn:hover{background:#232b34;border-color:#5b6774}
+.btn-go{background:#fff;color:var(--ink);border-color:#fff}
+.btn-go:hover{background:#d9dee3;border-color:#d9dee3;color:var(--ink)}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+.strip-head{display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 7px;gap:12px;flex-wrap:wrap}
+.strip-legend{font-family:var(--mono);font-size:10.5px;color:#8b98a6;display:flex;gap:14px}
+.strip-legend i{display:inline-block;width:8px;height:8px;margin-right:5px}
+.strip{display:flex;flex-wrap:wrap;gap:3px}
+.tile{width:15px;height:22px;border:0;padding:0;border-radius:1.5px;background:#2b333d;transition:transform .1s}
+.tile:hover,.tile:focus-visible{transform:translateY(-3px);outline:none;box-shadow:0 0 0 1.5px #fff}
+.tile.live{background:#2f9d7e}
+.tile.paused{background:#d1503c}
+.tile.dim{opacity:.22}
+
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:1px;background:var(--line);margin-top:14px;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.metric{background:var(--panel);padding:13px 15px 14px;text-align:left;border:0;width:100%;display:block}
+button.metric{cursor:pointer}
+button.metric:hover{background:#f7f9fa}
+.metric .k{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.metric .v{font-size:26px;font-weight:800;letter-spacing:-.045em;margin-top:3px;font-variant-numeric:tabular-nums}
+.metric .s{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:1px}
+.metric.alert .v{color:var(--flag)}
+.metric.stop .v{color:var(--paused)}
+.metric.bad .v{color:var(--paused)}
+
+.cover{background:var(--panel);border:1px solid var(--line);border-radius:4px;margin-top:14px}
+.cover-head{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;gap:12px;flex-wrap:wrap}
+.cover-head h2{margin:0;font-size:14.5px;font-weight:800;letter-spacing:-.02em}
+.cover-head p{margin:2px 0 0;font-size:12px;color:var(--ink-3)}
+.cover-legend{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);display:flex;gap:12px;align-items:center}
+.cover-legend i{display:inline-block;width:8px;height:8px;margin-right:5px;border-radius:1px}
+.cover-body{border-top:1px solid var(--line);padding:4px 15px 14px;max-height:340px;overflow:auto}
+.cover-body[hidden]{display:none}
+.sido{padding:10px 0;border-bottom:1px solid var(--line-2)}
+.sido:last-child{border-bottom:0}
+.sido h3{margin:0 0 6px;font-size:12px;font-weight:700;color:var(--ink-2);display:flex;gap:8px;align-items:baseline}
+.sido h3 span{font-family:var(--mono);font-size:10px;color:var(--ink-3);font-weight:400}
+.gu{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:2px;padding:3px 8px;margin:0 4px 4px 0;font-size:12px}
+.gu b{font-family:var(--mono);font-size:10.5px;font-weight:500;color:var(--ink-3)}
+.gu.zero{border-color:#e0a79c;background:var(--paused-bg);color:var(--paused)}
+.gu.zero b{color:var(--paused)}
+.gu.one{border-color:#e6c98a;background:var(--flag-bg);color:#6b4b00}
+.gu.one b{color:var(--flag)}
+.gu:hover{border-color:var(--ink)}
+
+.filters{background:var(--panel);border:1px solid var(--line);border-radius:4px;margin-top:14px;padding:12px 14px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3)}
+.filters input[type=search],.filters select{border:1px solid var(--line);border-radius:3px;padding:6px 9px;background:#fff;height:32px}
+.filters input[type=search]{width:210px}
+.filters input:focus,.filters select:focus{outline:2px solid var(--p1);outline-offset:-1px}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden;height:32px}
+.seg button{background:#fff;border:0;padding:0 12px;font-size:12.5px;font-weight:600;color:var(--ink-3);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.spacer{flex:1}
+.count{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.link-btn{background:none;border:0;font-family:var(--mono);font-size:11px;color:var(--p1);text-decoration:underline;padding:4px}
+
+.tablecard{background:var(--panel);border:1px solid var(--line);border-radius:4px;margin-top:12px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:1000px}
+thead th{position:sticky;top:0;background:#f3f5f7;z-index:2;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);text-align:left;font-weight:500;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th.sortable{cursor:pointer;user-select:none}
+thead th.sortable:hover{color:var(--ink)}
+thead th .arw{opacity:.4}
+thead th[aria-sort] .arw{opacity:1;color:var(--ink)}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:#f7f9fa}
+tbody tr.is-paused td:not(.c-act){opacity:.55}
+.rail{width:3px;padding:0!important;background:var(--live)}
+.is-paused .rail{background:var(--paused)}
+.is-risk .rail{background:var(--flag)}
+.name{font-weight:700;letter-spacing:-.01em}
+.sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:1px}
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;font-weight:500;padding:2.5px 7px;border-radius:2px;white-space:nowrap}
+.pill.live{background:var(--live-bg);color:var(--live)}
+.pill.paused{background:var(--paused-bg);color:var(--paused)}
+.pill.flag{background:var(--flag-bg);color:var(--flag)}
+.pill.p1{background:var(--p1-bg);color:var(--p1)}
+.pill.ghost{background:#eef1f3;color:var(--ink-3)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.c-act{width:98px;text-align:right}
+.toggle{border:1px solid var(--line);background:#fff;border-radius:3px;padding:5px 10px;font-size:11.5px;font-weight:700;color:var(--ink-2)}
+.toggle:hover{border-color:var(--ink);background:var(--ink);color:#fff}
+.toggle.dirty{border-color:var(--flag);background:var(--flag-bg);color:var(--flag)}
+.regions{font-size:12px;color:var(--ink-2);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.scrim{position:fixed;inset:0;background:rgba(14,18,22,.42);opacity:0;pointer-events:none;transition:.18s;z-index:40}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(520px,100%);background:var(--panel);z-index:41;transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:-8px 0 32px rgba(14,18,22,.18)}
+.drawer.on{transform:none}
+.dhead{padding:18px 22px 15px;border-bottom:1px solid var(--line);background:var(--ink);color:#fff;position:relative}
+.dhead h2{margin:3px 0 6px;font-size:22px;font-weight:800;letter-spacing:-.03em}
+.dbody{padding:6px 22px 30px;overflow-y:auto;flex:1}
+.drow{padding:12px 0;border-bottom:1px solid var(--line-2);display:grid;grid-template-columns:92px 1fr;gap:14px;align-items:start}
+.drow dt{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding-top:2px}
+.drow dd{margin:0;font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{background:#eef1f3;border-radius:2px;padding:2.5px 7px;font-size:11.5px}
+.chip.mono{font-family:var(--mono);font-size:10.5px}
+.chip.solo{background:var(--paused-bg);color:var(--paused)}
+.chip.thin{background:var(--flag-bg);color:#6b4b00}
+.dclose{position:absolute;top:16px;right:18px;background:none;border:0;color:#8b98a6;font-size:22px;line-height:1;padding:4px}
+.dclose:hover{color:#fff}
+.fee{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--mono);font-size:12px}
+.fee span:nth-child(even){text-align:right;font-weight:500}
+
+.banner{border-radius:4px;padding:13px 16px;margin-top:14px;font-size:13px;border:1px solid var(--line);background:var(--panel)}
+.banner.err{border-color:#e8b3aa;background:var(--paused-bg);color:#7d2317}
+.banner h3{margin:0 0 5px;font-size:13.5px;font-weight:800}
+.banner p{margin:0 0 8px}
+.banner code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.06);padding:1px 5px;border-radius:2px}
+.pastebox{width:100%;height:120px;font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:8px;margin-top:6px}
+
+.pending-bar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:4px;padding:11px 15px;display:none;align-items:center;gap:14px;z-index:30;box-shadow:0 6px 24px rgba(14,18,22,.3);font-size:13px;max-width:calc(100vw - 32px)}
+.pending-bar.on{display:flex}
+.pending-bar .btn{border-color:#4b5560}
+
+.empty{padding:56px 20px;text-align:center;color:var(--ink-3)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+dialog{border:0;border-radius:5px;padding:0;max-width:640px;width:calc(100% - 32px);box-shadow:0 20px 60px rgba(14,18,22,.35)}
+dialog::backdrop{background:rgba(14,18,22,.45)}
+.mhead{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.mhead h3{margin:0;font-size:16px;font-weight:800;letter-spacing:-.02em}
+.mbody{padding:16px 20px 22px;max-height:70vh;overflow:auto}
+.mbody p{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.mbody ol{margin:0 0 12px;padding-left:18px;font-size:13px;color:var(--ink-2)}
+.mbody li{margin-bottom:5px}
+pre{background:#f3f5f7;border:1px solid var(--line);border-radius:3px;padding:12px;overflow:auto;font-family:var(--mono);font-size:11.5px;line-height:1.55;margin:0 0 12px}
+.mrow{display:flex;gap:8px;align-items:flex-end;margin-bottom:12px}
+.mrow input{flex:1;border:1px solid var(--line);border-radius:3px;padding:7px 9px;height:34px;font-family:var(--mono);font-size:11.5px}
+.btn-dark{background:var(--ink);color:#fff;border:1px solid var(--ink);border-radius:3px;padding:8px 14px;font-size:12.5px;font-weight:600}
+.btn-dark:hover{background:#000}
+.btn-quiet{background:#fff;border:1px solid var(--line);color:var(--ink-2);border-radius:3px;padding:8px 14px;font-size:12.5px;font-weight:600}
+.btn-quiet:hover{border-color:var(--ink)}
+.btn-stop{background:var(--paused);border-color:var(--paused);color:#fff}
+.btn-stop:hover{background:#8d2416}
+
+@media (max-width:640px){
+  .wrap{padding:12px 12px 70px}
+  h1{font-size:23px}
+  .metric .v{font-size:22px}
+  .filters input[type=search]{width:100%}
+  .field{flex:1 1 140px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-top">
+      <div>
+        <div class="eyebrow">이사 업체 · 오더 배정 현황판</div>
+        <h1>업체 운영 상태</h1>
+      </div>
+      <div class="mast-actions">
+        <div class="sync">
+          <div id="syncState">시트 불러오는 중…</div>
+          <div id="syncTime"></div>
+        </div>
+        <select id="autoSel" class="btn" style="padding:7px 9px" aria-label="자동 새로고침 주기">
+          <option value="0">자동 새로고침 끔</option>
+          <option value="30">30초마다</option>
+          <option value="60" selected>1분마다</option>
+          <option value="300">5분마다</option>
+        </select>
+        <button class="btn btn-go" id="refreshBtn">새로고침</button>
+        <button class="btn" id="setupBtn">설정</button>
+      </div>
+    </div>
+
+    <div class="strip-head">
+      <div class="eyebrow">전체 업체 신호</div>
+      <div class="strip-legend">
+        <span><i style="background:#2f9d7e"></i>배정중</span>
+        <span><i style="background:#d1503c"></i>중지</span>
+      </div>
+    </div>
+    <div class="strip" id="strip"></div>
+  </header>
+
+  <div id="banners"></div>
+
+  <section class="metrics" id="metrics" aria-label="요약 지표"></section>
+
+  <section class="cover">
+    <div class="cover-head">
+      <div>
+        <h2>지역 커버리지</h2>
+        <p>배정중인 업체가 담당하는 지역입니다. 중지를 걸기 전에 그 지역이 비는지 먼저 확인하세요.</p>
+      </div>
+      <div class="cover-legend">
+        <span><i style="background:var(--paused)"></i>0곳</span>
+        <span><i style="background:var(--flag)"></i>1곳</span>
+        <span><i style="background:var(--line)"></i>2곳 이상</span>
+        <button class="link-btn" id="coverToggle">접기</button>
+      </div>
+    </div>
+    <div class="cover-body" id="coverBody"></div>
+  </section>
+
+  <section class="filters">
+    <div class="field">
+      <label for="q">검색</label>
+      <input type="search" id="q" placeholder="업체명 · 전화번호 · 로그인ID · 지역">
+    </div>
+    <div class="field">
+      <label>상태</label>
+      <div class="seg" id="segStatus" role="group">
+        <button data-v="all" aria-pressed="true">전체</button>
+        <button data-v="live" aria-pressed="false">배정중</button>
+        <button data-v="paused" aria-pressed="false">중지</button>
+        <button data-v="solo" aria-pressed="false">단독 담당</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="fSido">시·도</label>
+      <select id="fSido"><option value="">전체</option></select>
+    </div>
+    <div class="field">
+      <label for="fGu">세부 지역</label>
+      <select id="fGu"><option value="">전체</option></select>
+    </div>
+    <div class="field">
+      <label for="fType">이사종류</label>
+      <select id="fType"><option value="">전체</option></select>
+    </div>
+    <div class="field">
+      <label for="fSize">평수</label>
+      <select id="fSize"><option value="">전체</option></select>
+    </div>
+    <div class="field">
+      <label for="fPri">우선순위</label>
+      <select id="fPri"><option value="">전체</option></select>
+    </div>
+    <div class="spacer"></div>
+    <div class="count" id="rowCount"></div>
+    <button class="link-btn" id="resetBtn">필터 초기화</button>
+  </section>
+
+  <div class="tablecard">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:3px;padding:0"></th>
+          <th class="sortable" data-s="name">업체명 <span class="arw">↕</span></th>
+          <th class="sortable" data-s="pri">우선 <span class="arw">↕</span></th>
+          <th>상태</th>
+          <th>담당 지역</th>
+          <th>취급</th>
+          <th class="sortable" data-s="day" style="text-align:right">일 오더 <span class="arw">↕</span></th>
+          <th class="sortable" data-s="area" style="text-align:right">지역 수 <span class="arw">↕</span></th>
+          <th class="sortable" data-s="solo" style="text-align:right">단독 담당 <span class="arw">↕</span></th>
+          <th class="c-act">오더</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none">
+      <b>조건에 맞는 업체가 없습니다</b>
+      검색어나 필터를 넓혀보세요.
+    </div>
+  </div>
+</div>
+
+<div class="pending-bar" id="pendingBar">
+  <span id="pendingText"></span>
+  <button class="btn" id="openSheet">시트에서 수정</button>
+  <button class="btn" id="discardBtn">되돌리기</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" aria-label="업체 상세">
+  <div class="dhead">
+    <button class="dclose" id="dclose" aria-label="닫기">×</button>
+    <div class="eyebrow" id="dCode"></div>
+    <h2 id="dName"></h2>
+    <div id="dBadges" class="chips"></div>
+  </div>
+  <div class="dbody"><dl id="dBody" style="margin:0"></dl></div>
+</aside>
+
+<dialog id="confirmDlg">
+  <div class="mhead"><h3 id="cfTitle">오더 중지</h3></div>
+  <div class="mbody">
+    <div id="cfBody"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn-quiet" id="cfCancel">취소</button>
+      <button class="btn-dark btn-stop" id="cfOk">중지</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="setup">
+  <div class="mhead">
+    <h3>시트 연동 설정</h3>
+    <button class="link-btn" id="setupClose">닫기</button>
+  </div>
+  <div class="mbody">
+    <p>이 페이지는 구글 시트를 원본으로 읽습니다. 시트 공유가 <b>링크가 있는 모든 사용자 · 뷰어</b>여야 불러올 수 있습니다.</p>
+    <div class="mrow">
+      <div style="flex:1">
+        <label class="eyebrow" style="color:var(--ink-3)" for="cfgSheet">시트 ID 또는 URL</label>
+        <input id="cfgSheet">
+      </div>
+    </div>
+    <div class="mrow">
+      <div style="flex:1">
+        <label class="eyebrow" style="color:var(--ink-3)" for="cfgTab">탭 이름</label>
+        <input id="cfgTab">
+      </div>
+      <button class="btn-dark" id="cfgApply">적용하고 다시 불러오기</button>
+    </div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <h3 style="font-size:14px;margin:0 0 8px">웹에서 누른 중지를 시트에 반영하려면</h3>
+    <p>구글 시트는 읽기만 공개되어 있어 브라우저에서 바로 쓸 수 없습니다. 아래 Apps Script를 배포해 주소를 넣으면 토글이 시트에 바로 기록됩니다.</p>
+    <ol>
+      <li>시트에서 <b>확장 프로그램 → Apps Script</b> 열기</li>
+      <li>아래 코드 붙여넣기</li>
+      <li><b>배포 → 새 배포 → 웹 앱</b>, 액세스 권한 <b>모든 사용자</b></li>
+      <li>발급된 <code>/exec</code> 주소를 아래에 붙여넣기</li>
+    </ol>
+    <pre id="gasCode"></pre>
+    <div class="mrow">
+      <div style="flex:1">
+        <label class="eyebrow" style="color:var(--ink-3)" for="cfgApi">Apps Script 웹 앱 주소</label>
+        <input id="cfgApi" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <button class="btn-dark" id="cfgApiSave">저장</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-3)">설정은 이 페이지 주소(#)에 저장됩니다. 북마크하거나 공유하면 설정도 따라갑니다.</p>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+
+/* ─── 설정 ─────────────────────────────────────────── */
+const DEFAULTS = { sheet:"1OJH9F2kjQ5V6Wwp3IcTeMjgJNASTsIxLVuCbrnpdXWQ", tab:"시트1", api:"" };
+const cfg = Object.assign({}, DEFAULTS, parseHash());
+
+function parseHash(){
+  const o = {}, h = location.hash.replace(/^#/, "");
+  if (h) new URLSearchParams(h).forEach((v,k)=>o[k]=v);
+  return o;
+}
+function writeHash(){
+  const p = new URLSearchParams();
+  if (cfg.sheet !== DEFAULTS.sheet) p.set("sheet", cfg.sheet);
+  if (cfg.tab !== DEFAULTS.tab) p.set("tab", cfg.tab);
+  if (cfg.api) p.set("api", cfg.api);
+  const s = p.toString();
+  history.replaceState(null, "", s ? "#"+s : location.pathname + location.search);
+}
+const sheetId = v => (String(v).match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/) || [,String(v).trim()])[1];
+const sheetUrl = () => `https://docs.google.com/spreadsheets/d/${sheetId(cfg.sheet)}/edit`;
+
+/* ─── 상태 ─────────────────────────────────────────── */
+let rows = [];
+const overrides = new Map();
+let sort = { key:"name", dir:1 };
+const filters = { q:"", status:"all", sido:"", gu:"", type:"", size:"", pri:"" };
+let timer = null, lastSync = null;
+
+/* ─── CSV ──────────────────────────────────────────── */
+function parseCSV(text){
+  const out=[]; let row=[], cur="", q=false;
+  for (let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===","){ row.push(cur); cur=""; }
+    else if(c==="\n"){ row.push(cur); out.push(row); row=[]; cur=""; }
+    else if(c!=="\r") cur+=c;
+  }
+  if(cur!=="" || row.length){ row.push(cur); out.push(row); }
+  return out.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+
+/* ─── 행 정규화 ────────────────────────────────────── */
+const SIDO = ["서울","부산","대구","인천","광주","대전","울산","세종특별자치시","경기","강원","충북","충남","전북","전남","경북","경남","제주도","제주특별자치도","전남광주통합특별시"];
+const num = v => { const n = parseInt(String(v).replace(/[^\d]/g,""),10); return isNaN(n)?null:n; };
+const split = s => String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+
+function toRow(o, idx){
+  const regions = split(o["지역"]);
+  const sidos = [...new Set(regions.map(r => SIDO.find(s=>r.startsWith(s)) || r.split(" ")[0]))];
+  const fees = split(o["오더비"]).filter(s=>s.includes(":"))
+    .map(s=>{ const [k,v]=s.split(":"); return { k:k.trim(), v:(v||"").trim()||"—" }; });
+  return {
+    i: idx,
+    name: o["업체명"] || "",
+    pri: o["우선순위"] || "",
+    tel: o["전화번호"] || "",
+    email: o["정산 이메일"] || "",
+    settleState: o["정산상태"] || "",
+    orderTypes: split(o["오더타입"]),
+    sizes: split(o["평수"]),
+    moveTypes: split(o["이사종류"]),
+    quotes: split(o["견적방법"]),
+    perDay: num(o["일 가능 오더"]),
+    perMonth: num(o["월 가능 오더"]),
+    loginId: o["로그인ID"] || "",
+    allRegion: String(o["모든지역"]||"").trim() !== "",
+    regions, sidos, fees,
+    settledAt: o["정산일자"] || "",
+    sheetStopped: String(o["오더중지"]||"").trim() !== ""
+  };
+}
+const key = r => r.loginId || r.name;
+const stopped = r => overrides.has(key(r)) ? overrides.get(key(r)) : r.sheetStopped;
+
+/* 지역별 배정중 업체 수 / 처리량 */
+let coverMap = new Map();
+function buildCover(){
+  coverMap = new Map();
+  rows.forEach(r => r.regions.forEach(g=>{
+    if(!coverMap.has(g)) coverMap.set(g,{ live:0, total:0, cap:0 });
+    const c = coverMap.get(g);
+    c.total++;
+    if(!stopped(r)){ c.live++; c.cap += (r.perDay||0); }
+  }));
+}
+const liveIn = g => (coverMap.get(g)||{live:0}).live;
+const capIn  = g => (coverMap.get(g)||{cap:0}).cap;
+const soloRegions = r => stopped(r) ? [] : r.regions.filter(g=>liveIn(g)===1);
+
+/* ─── 불러오기 ─────────────────────────────────────── */
+async function load(manual){
+  const btn = document.getElementById("refreshBtn");
+  btn.disabled = true;
+  setSync("불러오는 중…","");
+  const id = sheetId(cfg.sheet);
+  const urls = [
+    `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(cfg.tab)}&t=${Date.now()}`,
+    `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&t=${Date.now()}`
+  ];
+  let text=null, err=null;
+  for (const u of urls){
+    try{
+      const res = await fetch(u,{cache:"no-store"});
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const t = await res.text();
+      if(/^\s*<!DOCTYPE|<html/i.test(t)) throw new Error("시트가 공개되어 있지 않습니다");
+      text=t; break;
+    }catch(e){ err=e; }
+  }
+  btn.disabled = false;
+  if(text===null){ showFetchError(err); return; }
+  ingest(text);
+  if(manual) flash("최신 상태로 맞췄습니다");
+}
+
+function ingest(text){
+  const grid = parseCSV(text);
+  if(!grid.length) return;
+  const head = grid[0].map(h=>h.trim());
+  if(!head.includes("업체명") || !head.includes("오더중지")){ showSchemaError(head); return; }
+  rows = grid.slice(1).map((r,i)=>{
+    const o={}; head.forEach((h,j)=>o[h]=(r[j]||"").trim());
+    return toRow(o,i);
+  }).filter(r=>r.name);
+  for(const [k,v] of [...overrides]){
+    const r = rows.find(x=>key(x)===k);
+    if(!r || r.sheetStopped===v) overrides.delete(k);
+  }
+  lastSync = new Date();
+  setSync("시트와 동기화됨","");
+  document.getElementById("banners").innerHTML = "";
+  buildOptions();
+  render();
+  pendingBar();
+}
+
+function setSync(state, sub){
+  document.getElementById("syncState").innerHTML = state;
+  document.getElementById("syncTime").textContent = sub;
+}
+function relTime(){
+  if(!lastSync) return "";
+  const s = Math.round((Date.now()-lastSync)/1000);
+  if(s<5) return "방금 전";
+  if(s<60) return s+"초 전";
+  const m = Math.floor(s/60);
+  return m<60 ? m+"분 전" : Math.floor(m/60)+"시간 전";
+}
+setInterval(()=>{ if(lastSync) document.getElementById("syncTime").textContent = relTime(); }, 5000);
+function flash(msg){
+  setSync("<b>"+msg+"</b>", relTime());
+  setTimeout(()=>setSync("시트와 동기화됨", relTime()), 2200);
+}
+
+function showFetchError(err){
+  document.getElementById("banners").innerHTML = `
+    <div class="banner err">
+      <h3>시트를 불러오지 못했습니다</h3>
+      <p>${(err&&err.message)||"네트워크 오류"} — 시트 공유를 <b>링크가 있는 모든 사용자 · 뷰어</b>로 바꾸거나, 아래에 시트 내용을 붙여넣어 확인할 수 있습니다. 브라우저 보안 정책으로 막히면 이 파일을 내려받아 열면 대부분 해결됩니다.</p>
+      <p><button class="btn-dark" id="openSheet2">시트 열기</button></p>
+      <p style="margin-top:10px">시트 전체 복사(Ctrl+A → Ctrl+C) 후 붙여넣기:</p>
+      <textarea class="pastebox" id="pasteArea" placeholder="여기에 붙여넣으세요"></textarea>
+      <p style="margin-top:6px"><button class="btn-dark" id="pasteGo">붙여넣은 내용으로 보기</button></p>
+    </div>`;
+  setSync("연결 끊김","");
+  document.getElementById("openSheet2").onclick = ()=>window.open(sheetUrl(),"_blank");
+  document.getElementById("pasteGo").onclick = ()=>{
+    const t = document.getElementById("pasteArea").value.trim();
+    if(!t) return;
+    ingest(t.includes("\t") ? tsvToCsv(t) : t);
+  };
+}
+function showSchemaError(head){
+  document.getElementById("banners").innerHTML = `
+    <div class="banner err">
+      <h3>필수 열을 찾지 못했습니다</h3>
+      <p>첫 행에 <code>업체명</code>과 <code>오더중지</code> 열이 있어야 합니다. 지금 읽은 첫 행: ${head.map(h=>`<code>${esc(h)}</code>`).join(" ")||"(비어 있음)"}</p>
+      <p>다른 탭을 읽고 있다면 설정에서 탭 이름을 바꿔주세요.</p>
+    </div>`;
+  setSync("열 구성 확인 필요","");
+}
+function tsvToCsv(t){
+  return t.split("\n").map(l=>l.split("\t").map(c=>/[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c).join(",")).join("\n");
+}
+
+/* ─── 지표 ─────────────────────────────────────────── */
+function metrics(){
+  const live = rows.filter(r=>!stopped(r));
+  const paused = rows.filter(r=>stopped(r));
+  const p1 = live.filter(r=>r.pri==="1");
+  const gs = [...coverMap.keys()];
+  const empty = gs.filter(g=>liveIn(g)===0);
+  const thin = gs.filter(g=>liveIn(g)===1);
+  const cap = live.reduce((s,r)=>s+(r.perDay||0),0);
+  const lostCap = paused.reduce((s,r)=>s+(r.perDay||0),0);
+  const pct = rows.length ? Math.round(paused.length/rows.length*100) : 0;
+  const M = [
+    ["등록 업체", rows.length, "", "", null],
+    ["오더 배정중", live.length, `전체의 ${100-pct}%`, "", "live"],
+    ["오더 중지", paused.length, `전체의 ${pct}%`, "stop", "paused"],
+    ["담당 없는 지역", empty.length, empty.length?"오더 배정 불가":"모두 커버됨", empty.length?"bad":"", null],
+    ["담당 1곳 지역", thin.length, "중지 시 공백", thin.length?"alert":"", null],
+    ["하루 처리 가능", cap, `중지로 묶인 ${lostCap}건`, "", null],
+    ["1순위 업체", p1.length, "배정중 기준", "", null]
+  ];
+  document.getElementById("metrics").innerHTML = M.map(([k,v,s,c,st])=>{
+    const tag = st ? "button" : "div";
+    return `<${tag} class="metric ${c}" ${st?`data-st="${st}"`:""}><div class="k">${k}</div><div class="v">${v.toLocaleString()}</div><div class="s">${s||"&nbsp;"}</div></${tag}>`;
+  }).join("");
+  document.querySelectorAll("#metrics [data-st]").forEach(b=>b.onclick=()=>setStatus(b.dataset.st));
+}
+
+/* ─── 지역 커버리지 ────────────────────────────────── */
+function coverage(){
+  const bySido = new Map();
+  [...coverMap.keys()].forEach(g=>{
+    const s = SIDO.find(x=>g.startsWith(x)) || g.split(" ")[0];
+    if(!bySido.has(s)) bySido.set(s,[]);
+    bySido.get(s).push(g);
+  });
+  const order = [...bySido.keys()].sort((a,b)=>a.localeCompare(b,"ko"));
+  document.getElementById("coverBody").innerHTML = order.map(s=>{
+    const gus = bySido.get(s).sort((a,b)=>a.localeCompare(b,"ko"));
+    const zero = gus.filter(g=>liveIn(g)===0).length;
+    return `<div class="sido">
+      <h3>${esc(s)} <span>${gus.length}개 지역${zero?` · 공백 ${zero}`:""}</span></h3>
+      <div>${gus.map(g=>{
+        const n = liveIn(g), c = n===0?"zero":n===1?"one":"";
+        const label = g.startsWith(s) ? (g.slice(s.length).trim()||s) : g;
+        return `<button class="gu ${c}" data-gu="${esc(g)}" title="${esc(g)} · 배정중 ${n}곳 · 하루 ${capIn(g)}건">${esc(label)}<b>${n}</b></button>`;
+      }).join("")}</div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("#coverBody [data-gu]").forEach(b=>{
+    b.onclick = ()=>{
+      filters.gu = b.dataset.gu; filters.sido = "";
+      document.getElementById("fSido").value = "";
+      buildGuOptions(); document.getElementById("fGu").value = filters.gu;
+      setStatus("all");
+      document.querySelector(".tablecard").scrollIntoView({behavior:"smooth",block:"start"});
+    };
+  });
+}
+
+function strip(){
+  const list = [...rows].sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+  const vis = new Set(visible().map(r=>r.i));
+  document.getElementById("strip").innerHTML = list.map(r=>{
+    const c = stopped(r)?"paused":"live";
+    return `<button class="tile ${c}${vis.has(r.i)?"":" dim"}" data-i="${r.i}" title="${esc(r.name)} · ${c==="paused"?"중지":"배정중"}" aria-label="${esc(r.name)}"></button>`;
+  }).join("");
+}
+
+/* ─── 필터 ─────────────────────────────────────────── */
+function buildOptions(){
+  fill("fSido", [...new Set(rows.flatMap(r=>r.sidos))].sort((a,b)=>a.localeCompare(b,"ko")), "전체");
+  fill("fType", [...new Set(rows.flatMap(r=>r.moveTypes))].sort((a,b)=>a.localeCompare(b,"ko")), "전체");
+  fill("fSize", [...new Set(rows.flatMap(r=>r.sizes))].sort((a,b)=>a.localeCompare(b,"ko")), "전체");
+  fill("fPri", [...new Set(rows.map(r=>r.pri).filter(Boolean))].sort(), "전체");
+  buildGuOptions();
+}
+function fill(id, vals, label){
+  const s = document.getElementById(id), keep = s.value;
+  s.innerHTML = `<option value="">${label}</option>` + vals.map(v=>`<option>${esc(v)}</option>`).join("");
+  s.value = vals.includes(keep) ? keep : "";
+}
+function buildGuOptions(){
+  let gus = [...new Set(rows.flatMap(r=>r.regions))];
+  if(filters.sido) gus = gus.filter(g=>g.startsWith(filters.sido));
+  fill("fGu", gus.sort((a,b)=>a.localeCompare(b,"ko")), "전체");
+}
+
+function visible(){
+  const q = filters.q.toLowerCase();
+  let out = rows.filter(r=>{
+    if(filters.status==="live" && stopped(r)) return false;
+    if(filters.status==="paused" && !stopped(r)) return false;
+    if(filters.status==="solo" && soloRegions(r).length===0) return false;
+    if(filters.sido && !r.sidos.includes(filters.sido)) return false;
+    if(filters.gu && !r.regions.includes(filters.gu)) return false;
+    if(filters.type && !r.moveTypes.includes(filters.type)) return false;
+    if(filters.size && !r.sizes.includes(filters.size)) return false;
+    if(filters.pri && r.pri!==filters.pri) return false;
+    if(q && !(r.name+r.tel+r.loginId+r.email+r.regions.join("")).toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const g = {
+    name: r=>r.name,
+    pri: r=>(r.pri||"9")+r.name,
+    day: r=>r.perDay ?? -1,
+    area: r=>r.regions.length,
+    solo: r=>soloRegions(r).length
+  }[sort.key];
+  out.sort((a,b)=>{
+    const x=g(a), y=g(b);
+    const c = typeof x==="number" ? x-y : String(x).localeCompare(String(y),"ko");
+    return c*sort.dir;
+  });
+  return out;
+}
+
+/* ─── 렌더 ─────────────────────────────────────────── */
+function render(){
+  buildCover();
+  const list = visible();
+  document.getElementById("tbody").innerHTML = list.map(r=>{
+    const st = stopped(r), solo = soloRegions(r), dirty = overrides.has(key(r));
+    const cls = [st?"is-paused":"", (!st&&solo.length)?"is-risk":""].join(" ");
+    const badge = st ? `<span class="pill paused">중지</span>` : `<span class="pill live">배정중</span>`;
+    const kinds = r.moveTypes.slice(0,2).map(t=>`<span class="pill ghost">${esc(t)}</span>`).join(" ")
+                + (r.moveTypes.length>2?` <span class="pill ghost">+${r.moveTypes.length-2}</span>`:"");
+    return `<tr class="${cls}" data-i="${r.i}">
+      <td class="rail"></td>
+      <td><div class="name">${esc(r.name)}</div><div class="sub">${esc(r.tel||"연락처 없음")}</div></td>
+      <td>${r.pri==="1"?'<span class="pill p1">1순위</span>':`<span class="pill ghost">${esc(r.pri||"—")}</span>`}</td>
+      <td>${badge}${dirty?' <span class="pill flag">미반영</span>':""}</td>
+      <td><div class="regions" title="${esc(r.regions.join(", "))}">${esc(r.regions.join(" · "))||"—"}</div>
+          <div class="sub">${esc(r.sidos.join(", "))}</div></td>
+      <td>${kinds||"—"}<div class="sub">${esc(r.sizes.join(", ")||"평수 미지정")}</div></td>
+      <td class="num">${r.perDay ?? "—"}<div class="sub">월 ${r.perMonth ?? "—"}</div></td>
+      <td class="num">${r.regions.length}</td>
+      <td class="num">${solo.length?`<span class="pill flag">${solo.length}</span>`:"—"}</td>
+      <td class="c-act"><button class="toggle ${dirty?"dirty":""}" data-t="${r.i}">${st?"재개":"중지"}</button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("empty").style.display = list.length?"none":"block";
+  document.getElementById("rowCount").textContent = `${list.length} / ${rows.length}개 업체`;
+  metrics(); coverage(); strip();
+}
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ─── 토글 ─────────────────────────────────────────── */
+const dlgC = document.getElementById("confirmDlg");
+let pendingAction = null;
+
+function toggle(r){
+  const next = !stopped(r);
+  if(next){
+    const gone = soloRegions(r);
+    if(gone.length){
+      document.getElementById("cfTitle").textContent = `${r.name} 중지`;
+      document.getElementById("cfBody").innerHTML =
+        `<p>이 업체를 중지하면 아래 <b>${gone.length}개 지역</b>에 배정 가능한 업체가 한 곳도 남지 않습니다.</p>
+         <div class="chips">${gone.map(g=>`<span class="chip solo">${esc(g)}</span>`).join("")}</div>
+         <p style="margin-top:12px">하루 ${r.perDay ?? "?"}건 처리분도 함께 빠집니다. 그래도 중지할까요?</p>`;
+      pendingAction = ()=>apply(r,next);
+      dlgC.showModal();
+      return;
+    }
+  }
+  apply(r,next);
+}
+document.getElementById("cfCancel").onclick = ()=>{ pendingAction=null; dlgC.close(); };
+document.getElementById("cfOk").onclick = ()=>{ dlgC.close(); if(pendingAction) pendingAction(); pendingAction=null; };
+
+async function apply(r,next){
+  overrides.set(key(r), next);
+  render(); pendingBar();
+  if(document.getElementById("drawer").classList.contains("on")) openDetail(r);
+  if(!cfg.api) return;
+  try{
+    await fetch(cfg.api,{ method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body: JSON.stringify({ tab:cfg.tab, loginId:r.loginId, name:r.name, stop:next }) });
+    flash(`${r.name} ${next?"중지":"재개"} 저장됨`);
+    setTimeout(()=>load(false), 900);
+  }catch(e){ flash("시트에 저장하지 못했습니다"); }
+}
+function pendingBar(){
+  const n = overrides.size, bar = document.getElementById("pendingBar");
+  bar.classList.toggle("on", n>0 && !cfg.api);
+  document.getElementById("pendingText").innerHTML =
+    `<b>${n}건</b>이 이 화면에만 적용됐습니다. 시트의 <code style="font-family:var(--mono)">오더중지</code> 칸도 바꿔야 실제 오더가 멈춥니다.`;
+}
+
+/* ─── 상세 ─────────────────────────────────────────── */
+function openDetail(r){
+  const st = stopped(r), solo = soloRegions(r);
+  document.getElementById("dCode").textContent = `로그인ID ${r.loginId||"—"}`;
+  document.getElementById("dName").textContent = r.name;
+  document.getElementById("dBadges").innerHTML =
+    `<span class="pill ${st?"paused":"live"}">${st?"오더 중지":"오더 배정중"}</span>` +
+    (r.pri==="1"?'<span class="pill p1">1순위</span>':"") +
+    (r.allRegion?'<span class="pill ghost">모든지역</span>':"") +
+    (solo.length?`<span class="pill flag">단독 담당 ${solo.length}곳</span>`:"");
+  const regionChips = r.regions.map(g=>{
+    const n = liveIn(g);
+    const c = n===0?"solo":(n===1&&!st)?"thin":"";
+    return `<span class="chip ${c}" title="이 지역 배정중 ${n}곳 · 하루 ${capIn(g)}건">${esc(g)} <b style="font-family:var(--mono);font-size:10px;font-weight:500;opacity:.7">${n}</b></span>`;
+  }).join("") || "—";
+  const D = [
+    ["연락처", `<div class="chips"><span class="chip mono">${esc(r.tel||"—")}</span></div>`],
+    ["처리량", `하루 <b>${r.perDay ?? "—"}</b>건 · 월 <b>${r.perMonth ?? "—"}</b>건`],
+    ["오더타입", `<div class="chips">${r.orderTypes.map(t=>`<span class="chip">${esc(t)}</span>`).join("")||"—"}</div>`],
+    ["이사종류", `<div class="chips">${r.moveTypes.map(t=>`<span class="chip">${esc(t)}</span>`).join("")||"—"}</div>`],
+    ["평수", `<div class="chips">${r.sizes.map(t=>`<span class="chip">${esc(t)}</span>`).join("")||"—"}</div>`],
+    ["견적방법", `<div class="chips">${r.quotes.map(t=>`<span class="chip">${esc(t)}</span>`).join("")||"—"}</div>`],
+    ["오더비", r.fees.length?`<div class="fee">${r.fees.map(f=>`<span>${esc(f.k)}</span><span>${esc(f.v)}</span>`).join("")}</div>`:"—"],
+    ["정산", `<div class="chips">${r.email?`<span class="chip">${esc(r.email)}</span>`:'<span class="chip">이메일 미등록</span>'}${r.settleState?`<span class="chip">${esc(r.settleState)}</span>`:""}</div>
+      <p style="margin:6px 0 0;font-family:var(--mono);font-size:11px;color:var(--ink-3)">${esc(r.settledAt||"")}</p>`],
+    [`담당 지역 ${r.regions.length}`, `<div class="chips">${regionChips}</div>
+      <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-3);font-family:var(--mono)">숫자 = 그 지역을 맡고 있는 배정중 업체 수</p>`]
+  ];
+  document.getElementById("dBody").innerHTML = D.map(([k,v])=>`<div class="drow"><dt>${k}</dt><dd>${v}</dd></div>`).join("") +
+    `<div style="margin-top:18px;display:flex;gap:8px">
+       <button class="btn-dark ${st?"":"btn-stop"}" id="dToggle">${st?"오더 재개":"오더 중지"}</button>
+       <button class="btn-quiet" id="dSheet">시트에서 열기</button>
+     </div>`;
+  document.getElementById("dToggle").onclick = ()=>toggle(r);
+  document.getElementById("dSheet").onclick = ()=>window.open(sheetUrl(),"_blank");
+  const d = document.getElementById("drawer");
+  d.classList.add("on"); d.setAttribute("aria-hidden","false");
+  document.getElementById("scrim").classList.add("on");
+}
+function closeDetail(){
+  const d = document.getElementById("drawer");
+  d.classList.remove("on"); d.setAttribute("aria-hidden","true");
+  document.getElementById("scrim").classList.remove("on");
+}
+
+/* ─── 이벤트 ───────────────────────────────────────── */
+document.getElementById("tbody").addEventListener("click", e=>{
+  const t = e.target.closest("[data-t]");
+  if(t){ e.stopPropagation(); const r=rows.find(x=>x.i===+t.dataset.t); if(r) toggle(r); return; }
+  const tr = e.target.closest("tr");
+  if(tr){ const r=rows.find(x=>x.i===+tr.dataset.i); if(r) openDetail(r); }
+});
+document.getElementById("strip").addEventListener("click", e=>{
+  const b = e.target.closest("[data-i]"); if(!b) return;
+  const r = rows.find(x=>x.i===+b.dataset.i); if(r) openDetail(r);
+});
+document.querySelectorAll("thead th.sortable").forEach(th=>{
+  th.onclick = ()=>{
+    const k = th.dataset.s;
+    sort = { key:k, dir: sort.key===k ? -sort.dir : (k==="name"||k==="pri"?1:-1) };
+    document.querySelectorAll("thead th").forEach(x=>x.removeAttribute("aria-sort"));
+    th.setAttribute("aria-sort", sort.dir===1?"ascending":"descending");
+    render();
+  };
+});
+document.getElementById("q").addEventListener("input", e=>{ filters.q=e.target.value; render(); });
+document.getElementById("fSido").addEventListener("change", e=>{
+  filters.sido = e.target.value; filters.gu = "";
+  buildGuOptions(); render();
+});
+document.getElementById("fGu").addEventListener("change", e=>{ filters.gu=e.target.value; render(); });
+document.getElementById("fType").addEventListener("change", e=>{ filters.type=e.target.value; render(); });
+document.getElementById("fSize").addEventListener("change", e=>{ filters.size=e.target.value; render(); });
+document.getElementById("fPri").addEventListener("change", e=>{ filters.pri=e.target.value; render(); });
+function setStatus(v){
+  filters.status = v;
+  document.querySelectorAll("#segStatus button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.v===v)));
+  render();
+}
+document.getElementById("segStatus").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(b) setStatus(b.dataset.v);
+});
+document.getElementById("resetBtn").onclick = ()=>{
+  Object.assign(filters,{q:"",status:"all",sido:"",gu:"",type:"",size:"",pri:""});
+  document.getElementById("q").value="";
+  ["fSido","fGu","fType","fSize","fPri"].forEach(i=>document.getElementById(i).value="");
+  buildGuOptions(); setStatus("all");
+};
+document.getElementById("coverToggle").onclick = e=>{
+  const b = document.getElementById("coverBody");
+  const hidden = b.hasAttribute("hidden");
+  if(hidden) b.removeAttribute("hidden"); else b.setAttribute("hidden","");
+  e.target.textContent = hidden ? "접기" : "펼치기";
+};
+document.getElementById("refreshBtn").onclick = ()=>load(true);
+document.getElementById("dclose").onclick = closeDetail;
+document.getElementById("scrim").onclick = closeDetail;
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDetail(); });
+document.getElementById("openSheet").onclick = ()=>window.open(sheetUrl(),"_blank");
+document.getElementById("discardBtn").onclick = ()=>{ overrides.clear(); render(); pendingBar(); };
+document.getElementById("autoSel").onchange = e=>{
+  clearInterval(timer);
+  const s = +e.target.value;
+  if(s) timer = setInterval(()=>load(false), s*1000);
+};
+document.getElementById("autoSel").dispatchEvent(new Event("change"));
+
+/* ─── 설정 ─────────────────────────────────────────── */
+const dlg = document.getElementById("setup");
+document.getElementById("gasCode").textContent =
+`function doPost(e) {
+  var p = JSON.parse(e.postData.contents);
+  var sh = SpreadsheetApp.getActive().getSheetByName(p.tab || '시트1');
+  var data = sh.getDataRange().getValues();
+  var head = data[0];
+  var idCol = head.indexOf('로그인ID');
+  var nmCol = head.indexOf('업체명');
+  var stCol = head.indexOf('오더중지');
+  for (var i = 1; i < data.length; i++) {
+    var hit = (p.loginId && idCol > -1 && String(data[i][idCol]) === String(p.loginId))
+           || ((!p.loginId || idCol < 0) && data[i][nmCol] === p.name);
+    if (hit) {
+      sh.getRange(i + 1, stCol + 1).setValue(p.stop ? '중지' : '');
+      break;
+    }
+  }
+  return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+document.getElementById("setupBtn").onclick = ()=>{
+  document.getElementById("cfgSheet").value = cfg.sheet;
+  document.getElementById("cfgTab").value = cfg.tab;
+  document.getElementById("cfgApi").value = cfg.api;
+  dlg.showModal();
+};
+document.getElementById("setupClose").onclick = ()=>dlg.close();
+document.getElementById("cfgApply").onclick = ()=>{
+  cfg.sheet = sheetId(document.getElementById("cfgSheet").value);
+  cfg.tab = document.getElementById("cfgTab").value.trim() || "시트1";
+  writeHash(); dlg.close(); load(true);
+};
+document.getElementById("cfgApiSave").onclick = ()=>{
+  cfg.api = document.getElementById("cfgApi").value.trim();
+  writeHash(); pendingBar();
+  flash(cfg.api ? "시트에 바로 저장하도록 설정했습니다" : "저장 주소를 지웠습니다");
+};
+
+load(false);
+</script>
+</body>
+</html>
